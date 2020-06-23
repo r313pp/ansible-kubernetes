@@ -1,0 +1,86 @@
+---
+
+- name: include install kubernetes
+  include: install.yaml
+
+- name: find kubernetes admin.conf
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_admin_conf
+
+- name: maybe find kubernetes main node
+  set_fact:
+    kubeadm_main_node: >-
+      {{ hostvars | dict2items |
+      selectattr("value.kubeadm_admin_conf.stat.exists") | 
+      map(attribute="key") | first }}
+  run_once: true
+  ignore_errors: true
+
+- name: init cluster if needed
+  shell: kubeadm init {{ kubernetes_kubeadm_init_args }}
+  when: kubeadm_main_node is not defined
+  run_once: yes
+
+- name: find kubernetes admin.conf
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_admin_conf
+
+- name: find kubernetes main node
+  set_fact:
+    kubeadm_main_node: >-
+      {{ hostvars | dict2items |
+      selectattr("value.kubeadm_admin_conf.stat.exists") | 
+      map(attribute="key") | first }}
+  run_once: true
+
+- name: check cluster
+  shell: >-
+    KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl -n kube-system get pods
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ kubeadm_main_node }}"
+
+- name: check calico
+  shell: >-
+    KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl -n kube-system get deployment/calico-kube-controllers
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ kubeadm_main_node }}"
+  register: kubernetes_calico_check
+  ignore_errors: true
+
+- name: install calico
+  shell: >-
+    KUBECONFIG=/etc/kubernetes/admin.conf 
+    kubectl apply -f https://docs.projectcalico.org/v{{ kubernetes_calico_version }}/manifests/calico.yaml
+  when: kubernetes_calico_check.rc == 1
+  run_once: true
+  delegate_to: "{{ kubeadm_main_node }}"
+
+- name: get join command
+  shell: kubeadm token create --print-join-command
+  register: kubernetes_join_command
+  run_once: true
+  delegate_to: "{{ kubeadm_main_node }}"
+  changed_when: false
+
+- name: get ca cert key
+  shell: kubeadm init phase upload-certs --upload-certs
+  register: kubernetes_cert_key
+  run_once: true
+  delegate_to: "{{ kubeadm_main_node }}"
+  changed_when: false
+
+- name: join kubernetes cluster
+  shell:
+    cmd: >-
+      {{ kubernetes_join_command.stdout }}
+      {% if "master" in group_names %}
+      --control-plane
+      --certificate-key {{ kubernetes_cert_key.stdout }}
+      {% endif %}
+    creates: /etc/kubernetes/pki/ca.crt

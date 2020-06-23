@@ -1,0 +1,70 @@
+---
+
+- name: modprobe br_netfilter
+  modprobe:
+    name: br_netfilter
+
+- name: letting iptables see bridged traffic
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/k8s.conf
+  loop:
+    - name: net.bridge.bridge-nf-call-ip6tables
+      value: "1"
+    - name: net.bridge.bridge-nf-call-iptables
+      value: "1"
+
+- name: firewalld internal accept rules
+  firewalld:
+    source: "{{ item }}"
+    zone: trusted
+    state: enabled
+    permanent: yes
+  loop: >
+    {{ hostvars | dict2items |
+    rejectattr("key", "match", inventory_hostname + "$") |
+    map(attribute="value.ansible_default_ipv4.address") | list }}
+  vars:
+    a: 10
+  register: firewalld_reload
+
+- name: reload service firewalld
+  systemd:
+    name: firewalld
+    state: reloaded
+  when: firewalld_reload is changed
+
+- name: put SELinux in permissive mode
+  selinux:
+    policy: targeted
+    state: permissive
+
+- name: add Kubernetes yum repo
+  yum_repository:
+    name: kubernetes
+    description: Kubernetes
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch
+    enabled: yes
+    gpgcheck: yes
+    repo_gpgcheck: yes
+    gpgkey:
+      - https://packages.cloud.google.com/yum/doc/yum-key.gpg
+      - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    exclude:
+      "{{ kubernetes_packages }}"
+
+- name: install kubernetes packages
+  yum:
+    name: "{{ packages }}"
+    disable_excludes: kubernetes
+  vars:
+    packages: '{{ kubernetes_packages | map("regex_replace", "(.*)", "\1-" + kubernetes_version) | list }}'
+  register: kubernetes_install
+
+- name: kubelet service restart
+  systemd:
+    name: kubelet
+    state: restarted
+    enabled: yes
+  when: kubernetes_install is changed

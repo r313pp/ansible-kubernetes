@@ -1,0 +1,53 @@
+---
+
+- name: install yum-utils
+  yum:
+    name: yum-utils
+  
+- name: add Docker CE stable repository
+  yum_repository:
+    name: docker-ce-stable
+    file: docker-ce
+    description: Docker CE Stable - $basearch
+    baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: https://download.docker.com/linux/centos/gpg
+
+- name: install docker-ce
+  yum:
+    name:
+    - docker-ce-{{ docker_version }}
+    - docker-ce-cli-{{ docker_version }}
+    - containerd.io-{{ containerd_version }}
+    state: present
+    allow_downgrade: yes
+  register: docker_install
+
+- name: docker systemd service override.conf
+  copy:
+    content: "{{ docker_service_override_conf }}"
+    dest: /etc/systemd/system/docker.service.d/override.conf
+  when: docker_service_override_conf is defined
+  notify: docker service restart
+
+- name: docker systemd service override.conf delete
+  file:
+      path: /etc/systemd/system/docker.service.d/override.conf
+      state: absent
+  when: docker_service_override_conf is not defined
+  notify: docker service restart
+
+- name: ensures /etc/docker dir exists
+  file:
+    path: /etc/docker
+    state: directory
+
+- name: copy docker daemon.json config
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: 0755
+  notify: docker service restart

@@ -1,0 +1,22 @@
+---
+
+- hosts: cluster
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: check-os
+      any_errors_fatal: true
+
+- hosts: cluster
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: docker
+      tags: docker
+
+- hosts: cluster
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: kubernetes
+      tags: kubernetes
