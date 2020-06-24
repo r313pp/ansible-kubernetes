@@ -79,8 +79,8 @@
   shell:
     cmd: >-
       {{ kubernetes_join_command.stdout }}
-      {% if "master" in group_names %}
+      {%- if "master" in group_names %}
       --control-plane
-      --certificate-key {{ kubernetes_cert_key.stdout }}
-      {% endif %}
+      --certificate-key {{ kubernetes_cert_key.stdout_lines | last }}
+      {%- endif %}
     creates: /etc/kubernetes/pki/ca.crt
