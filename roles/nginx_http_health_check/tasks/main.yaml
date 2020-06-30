@@ -1,0 +1,15 @@
+---
+
+- name: install nginx
+  yum:
+    name: nginx
+  notify: nginx service restart
+
+- name: copy nginx config
+  template:
+    src: kubernetes.default.svc.cluster.local.j2
+    dest: /etc/nginx/conf.d/kubernetes.default.svc.cluster.local.conf
+    owner: root
+    group: root
+    mode: 0755
+  notify: nginx service restart

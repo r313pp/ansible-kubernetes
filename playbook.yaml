@@ -15,6 +15,14 @@
       tags: docker
 
 - hosts: cluster
+  gather_facts: no
+  become: yes
+  roles:
+    - role: nginx_http_health_check
+      tags: nginx_http_health_check
+      when: nginx_http_health_check
+
+- hosts: cluster
   gather_facts: yes
   become: yes
   roles:
