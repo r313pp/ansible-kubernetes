@@ -79,7 +79,7 @@
   shell:
     cmd: >-
       {{ kubernetes_join_command.stdout_lines | last }}
-      {%- if "master" in group_names %}
+      {%- if "controllers" in group_names %}
       --control-plane
       --certificate-key {{ kubernetes_cert_key.stdout_lines | last }}
       {%- endif %}
