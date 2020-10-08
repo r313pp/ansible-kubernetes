@@ -1,0 +1,24 @@
+---
+
+- name: check mandatory variables
+  assert:
+    that:
+      - k8s_ha.control_plane_ip is defined
+      - k8s_ha.control_plane_port is defined
+      - k8s_ha.external_lb is defined
+
+- name: check mandatory variables no external_lb
+  assert:
+    that:
+      - k8s_ha.haproxy_stats_auth is defined
+      - k8s_ha.keepalived_auth is defined
+      - k8s_ha.keepalived_virtual_router_id is defined
+  when: not k8s_ha.external_lb
+
+- name: setup haproxy
+  include: haproxy.yaml
+  when: not k8s_ha.external_lb
+
+- name: setup keepalived
+  include: keepalived.yaml
+  when: not k8s_ha.external_lb

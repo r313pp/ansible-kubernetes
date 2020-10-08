@@ -1,0 +1,35 @@
+defaults
+  mode http
+  timeout connect 5s
+  timeout client  {{ sysctl_tcp_keepalive_time | int - 10 }}s
+  timeout server  {{ sysctl_tcp_keepalive_time | int - 10 }}s
+
+listen stats
+  bind    *:9000
+  mode    http
+  stats   enable
+  stats   hide-version
+  stats   uri       /stats
+  stats   refresh   30s
+  stats   realm     Haproxy\ Statistics
+  stats   auth      {{ k8s_ha.haproxy_stats_auth }}
+
+frontend kube-apiserver
+  bind {{ k8s_ha.control_plane_ip }}:{{ k8s_ha.control_plane_port }}
+  mode tcp
+  tcp-request inspect-delay 5s
+  tcp-request content accept if { req.ssl_hello_type 1 }
+  default_backend kube-apiserver
+
+backend kube-apiserver
+  balance roundrobin
+  mode tcp
+  option tcplog
+  option tcp-check
+  option httpchk GET /healthz
+  http-check expect status 200
+  default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
+
+  {% for controller_name in groups["controllers"] %}
+  server {{ controller_name }} {{ hostvars[controller_name].ansible_default_ipv4.address }}:6443 check check-ssl verify none
+  {% endfor %}

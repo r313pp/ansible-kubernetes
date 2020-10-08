@@ -9,6 +9,7 @@
     name: "{{ item.name }}"
     value: "{{ item.value }}"
     sysctl_file: /etc/sysctl.d/k8s.conf
+    sysctl_set: yes
   loop:
     - name: net.bridge.bridge-nf-call-ip6tables
       value: "1"
@@ -40,6 +41,15 @@
     policy: targeted
     state: permissive
 
+- name: disable SWAP
+  shell: swapoff -a
+
+- name: remove SWAP from fstab
+  mount:
+    name: swap
+    fstype: swap
+    state: absent
+
 - name: add Kubernetes yum repo
   yum_repository:
     name: kubernetes
@@ -53,6 +63,16 @@
       - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
     exclude:
       "{{ kubernetes_packages }}"
+
+- name: check kubeadm kubelet versions
+  assert:
+    that: |
+      item not in ansible_facts.packages or
+      ansible_facts.packages[item] | length == 1 and
+      ansible_facts.packages[item][0].version == kubernetes_version
+    fail_msg: "{{ item }} version missmach or multiple version installed, expected version {{ kubernetes_version }}"
+  loop:
+    "{{ kubernetes_packages }}"
 
 - name: install kubernetes packages
   yum:

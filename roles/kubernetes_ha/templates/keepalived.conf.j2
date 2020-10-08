@@ -1,0 +1,36 @@
+! Configuration File for keepalived
+
+global_defs {
+   router_id {{ ansible_hostname }}
+   vrrp_skip_check_adv_addr
+   vrrp_strict
+   vrrp_garp_interval 0
+   vrrp_gna_interval 0
+}
+
+vrrp_script chk_haproxy {
+    script "killall -0 haproxy"   # verify the pid existance
+    interval 2                    # check every 2 seconds
+    weight 2                      # add 2 points of prio if OK
+}
+
+vrrp_instance VI_1 {
+    state {% if groups["controllers"][0] == ansible_nodename -%}
+            MASTER
+          {% else -%}
+            BACKUP
+          {%- endif %}
+    interface {{ ansible_default_ipv4.interface }}
+    virtual_router_id {{ k8s_ha.keepalived_virtual_router_id }}
+    priority 100
+    advert_int 1
+    authentication {
+        {{ k8s_ha.keepalived_auth | indent(8) }}
+    }
+    track_script {
+        chk_haproxy
+    }
+    virtual_ipaddress {
+        {{ k8s_ha.control_plane_ip }}
+    }
+}

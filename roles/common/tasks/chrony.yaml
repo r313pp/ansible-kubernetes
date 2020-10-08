@@ -1,0 +1,13 @@
+---
+
+- name: install chrony
+  yum:
+    name: chrony
+
+- name: copy chrony config
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: 0644

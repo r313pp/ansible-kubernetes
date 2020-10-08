@@ -1,5 +1,10 @@
 ---
 
+- name: check mandatory variables
+  assert:
+    that:
+      - kubernetes_version is defined
+
 - name: check ansible_os_family
   assert:
     that: ansible_os_family == "RedHat"
@@ -8,13 +13,3 @@
 - name: get packets facts
   package_facts:
     manager: "rpm"
-
-- name: check kubeadm kubelet versions
-  assert:
-    that: >
-      item not in ansible_facts.packages or
-      ansible_facts.packages[item] | length == 1 and
-      ansible_facts.packages[item][0].version == kubernetes_version
-    fail_msg: "{{ item }} version missmach or multiple version installed, expected version {{ kubernetes_version }}"
-  loop:
-    "{{ kubernetes_packages }}"

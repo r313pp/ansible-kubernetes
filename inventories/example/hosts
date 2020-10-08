@@ -1,0 +1,16 @@
+# controllers group must not be empty.
+# If thre's more than one server in controllers group
+# then k8s_ha section in gorup_vars/cluster.yaml must be filled.
+[controllers]
+node01
+node02
+node03
+
+[workers]
+node05
+node06
+
+# You probably don't need to change this.
+[cluster:children]
+controllers
+workers

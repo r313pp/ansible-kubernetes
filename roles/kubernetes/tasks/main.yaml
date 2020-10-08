@@ -1,5 +1,23 @@
 ---
 
+- name: check controllers count
+  assert:
+    that: (groups['controllers'] | length) >= 1
+
+- name: check mandatory variables
+  assert:
+    that:
+      - kubernetes_version is defined
+      - kubernetes_packages is defined
+      - kubernetes_calico_version is defined
+
+- name: check mandatory variables ha
+  assert:
+    that:
+      - k8s_ha.control_plane_ip is defined
+      - k8s_ha.control_plane_port is defined
+  when: (groups['controllers'] | length) > 1
+
 - name: include install kubernetes
   include: install.yaml
 
@@ -8,7 +26,7 @@
     path: /etc/kubernetes/admin.conf
   register: kubeadm_admin_conf
 
-- name: maybe find kubernetes main node
+- name: try to find kubernetes main node
   set_fact:
     kubeadm_main_node: >-
       {{ hostvars | dict2items |
@@ -18,7 +36,13 @@
   ignore_errors: true
 
 - name: init cluster if needed
-  shell: kubeadm init {{ kubernetes_kubeadm_init_args }}
+  shell: >-
+    kubeadm init
+    --apiserver-advertise-address {{ ansible_default_ipv4.address }}
+    {% if (groups['controllers'] | length) > 1 %}
+    --control-plane-endpoint {{ k8s_ha.control_plane_ip }}:{{ k8s_ha.control_plane_port }}
+    {% endif %}
+    {{ kubernetes_kubeadm_init_args | default("") }}
   when: kubeadm_main_node is not defined
   run_once: yes
 
@@ -54,9 +78,14 @@
   ignore_errors: true
 
 - name: install calico
-  shell: >-
-    KUBECONFIG=/etc/kubernetes/admin.conf 
+  environment: |-
+    {{ 
+      proxy_env | default({}) |
+      combine({"KUBECONFIG": "/etc/kubernetes/admin.conf"})
+    }}
+  shell: |
     kubectl apply -f https://docs.projectcalico.org/v{{ kubernetes_calico_version }}/manifests/calico.yaml
+    kubectl -n kube-system set env daemonset/calico-node IP_AUTODETECTION_METHOD=can-reach={{ ansible_default_ipv4.address }}
   when: kubernetes_calico_check.rc == 1
   run_once: true
   delegate_to: "{{ kubeadm_main_node }}"
@@ -81,6 +110,7 @@
       {{ kubernetes_join_command.stdout_lines | last }}
       {%- if "controllers" in group_names %}
       --control-plane
+      --apiserver-advertise-address {{ ansible_default_ipv4.address }}
       --certificate-key {{ kubernetes_cert_key.stdout_lines | last }}
       {%- endif %}
     creates: /etc/kubernetes/pki/ca.crt

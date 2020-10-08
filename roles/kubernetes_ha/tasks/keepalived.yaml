@@ -1,0 +1,15 @@
+---
+
+- name: install keepalived
+  yum:
+    name: keepalived,psmisc
+  notify: keepalived service restart
+
+- name: copy keepalived config
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0600
+  notify: keepalived service restart

@@ -1,5 +1,11 @@
 ---
 
+- name: check mandatory variables
+  assert:
+    that:
+      - docker_version is defined
+      - containerd_version is defined
+
 - name: install yum-utils
   yum:
     name: yum-utils
@@ -24,18 +30,37 @@
     allow_downgrade: yes
   register: docker_install
 
-- name: docker systemd service override.conf
-  copy:
-    content: "{{ docker_service_override_conf }}"
-    dest: /etc/systemd/system/docker.service.d/override.conf
-  when: docker_service_override_conf is defined
-  notify: docker service restart
-
-- name: docker systemd service override.conf delete
+- name: ensures /etc/systemd/system/docker.service.d dir exists
   file:
-      path: /etc/systemd/system/docker.service.d/override.conf
-      state: absent
-  when: docker_service_override_conf is not defined
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+
+- name: docker systemd set proxy
+  blockinfile:
+    path: /etc/systemd/system/docker.service.d/override.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK proxy"
+    block: |
+      [Service]
+      {% if proxy_env.http_proxy is defined %}
+      Environment="HTTP_PROXY={{ proxy_env.http_proxy }}"
+      {% endif %}
+      {% if proxy_env.https_proxy is defined %}
+      Environment="HTTPS_PROXY={{ proxy_env.https_proxy }}"
+      {% endif %}
+      {% if proxy_env.no_proxy is defined %}
+      Environment="NO_PROXY={{ proxy_env.no_proxy }}"
+      {% endif %}
+    create: yes
+    state: |-
+      {% if 
+        proxy_env.http_proxy is defined or
+        proxy_env.https_proxy is defined or
+        proxy_env.no_proxy is defined
+      %}
+      present
+      {%- else %}
+      absent
+      {%- endif %}
   notify: docker service restart
 
 - name: ensures /etc/docker dir exists
@@ -44,10 +69,10 @@
     state: directory
 
 - name: copy docker daemon.json config
-  template:
-    src: daemon.json.j2
+  copy:
+    content: "{{ docker_conf | default('') }}"
     dest: /etc/docker/daemon.json
     owner: root
     group: root
-    mode: 0755
+    mode: 0644
   notify: docker service restart

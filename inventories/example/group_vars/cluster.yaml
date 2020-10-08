@@ -1,0 +1,97 @@
+---
+
+# sets sysctl on all nodes
+sysctl_config:
+  net.ipv4.tcp_keepalive_time: 600
+
+# docker version that will be installed or updated to
+docker_version: 19.03.11
+
+# this will be placed in /etc/docker/daemon.json
+docker_conf: |
+  {
+    "exec-opts": ["native.cgroupdriver=systemd"],
+    "storage-driver": "overlay2"
+  }
+
+# containerd version that will be installed or updated to
+containerd_version: 1.2.13
+
+# exact kubernetes version that will be installed or must be present
+# if other version is installed then the run will crush
+# kubernetes upgrade process is not supported by this playbook
+kubernetes_version: 1.18.4
+
+# calico is used as CNI plugin in this playbook
+# it will be installed if not already present in cluster
+# existence is checked by checking the existence of deployment/calico-kube-controllers
+kubernetes_calico_version: 3.15
+
+# if your servers is behind the proxy then specify them here
+# if not then delete this block
+# used by yum to pull packages, docker to pull images, kubectl to pull manifests (calico)
+proxy_env:
+  http_proxy: http://proxy.myorg.lan:3128
+  https_proxy: http://proxy.myorg.lan:3128
+  no_proxy: 10.0.0.0/8
+
+# additional args that will be passed to kubeadm init command
+# it's a good idea to specify pod-network-cidr for example as it's required by some CNI
+kubernetes_kubeadm_init_args: >-
+  --pod-network-cidr=10.200.0.0/16
+
+# http wrapper around kubernetes health check https://127.0.0.1:6443/healthz
+# for external load balancers which does't support HTTPS checks
+nginx_http_health_check: no
+
+k8s_ha:
+  # virtual ip wich will be load balanced
+  # ip and port must be filled if more than one controller node is specified in hosts
+  control_plane_ip: 10.1.205.63
+  control_plane_port: 7443
+  # if not set then keepalived + haproxy will be installed for local load balancing
+  external_lb: no
+  # login:password for haproxy stats page
+  # located at http://control_plane_ip:9000/stats
+  # should be stored securely (ansible vault for example)
+  haproxy_stats_auth: admin:some_pass
+  # auth used by keepalived
+  # should be stored securely (ansible vault for example)
+  keepalived_auth: |-
+    auth_type PASS
+    auth_pass some_pass
+  # keepalived_virtual_router_id needs to be unique in your network
+  keepalived_virtual_router_id: 73
+# additional CAs
+ca_certs_additional: |
+  -----BEGIN CERTIFICATE-----
+  MIIFVzCCAz+gAwIBAgIJAJHHBiUH/5hpMA0GCSqGSIb3DQEBCwUAMEIxCzAJBgNV
+  BAYTAlhYMRUwEwYDVQQHDAxEZWZhdWx0IENpdHkxHDAaBgNVBAoME0RlZmF1bHQg
+  Q29tcGFueSBMdGQwHhcNMjAxMDA3MTA0NDQzWhcNMjExMDA3MTA0NDQzWjBCMQsw
+  CQYDVQQGEwJYWDEVMBMGA1UEBwwMRGVmYXVsdCBDaXR5MRwwGgYDVQQKDBNEZWZh
+  dWx0IENvbXBhbnkgTHRkMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA
+  t8g2iTdB9vVrEEU3qjHKDg/lMSMNqOcnX5LG3iMqOsplEY69wZ+O6ANmkL36HBTw
+  xEMwWVXLKfija/BiRpKbtncmE9Mgxj3kTCqlKuv2nM1kczCW9G/GDJtt7YXVPwfW
+  nzPvlD0KotfTwzrFsVQCVYhuz5mkLsq+uTDzmpUlt9LjFByIUpBqI0SgfNTOtvKG
+  TmZjUtA6JUekotgWJZocf26IyrsH/Iz6rq06VBfJ/h/AfnKTbzBmMFWAec2fpmpX
+  nA5txxK+31diQ9d5UfkqP/7niiTJWEA/JpcWRVCQTX6WJNkcZtxDe7zRpxSagC7u
+  H6HsKd0I/F1fh5w66UwfuX3j6rQIAfkeNoA3oduDrYsPam+yvC2d/jIur4KCB/Tb
+  +TjpTdp6lKHWaOd+6y0EEQ6ZhnrOnOEjFwv8zgDVfCauiXmAZM+ynS4+TCug3cPM
+  9iaesf/Vj6DgOzBK1TerNFGvD8JaAklkdgJ82ukhgz8QcuZS90d5R3smaBX3sTAb
+  Pvkgd2hdVR71eyh7f1gl8wX03Tr03cytf03rAFySUIW2VgKxmy1l2q2LgFM/7DS/
+  det81xTrYi05VBQk9DTCRZSbBW+/o2LO6WbATM16IjFxeyNT9Fr4j1FJlz3mjIEm
+  C6SQCpYFFW5RO8vG5fKmhDWgEj8Tf/1ArHfLFSX1sckCAwEAAaNQME4wHQYDVR0O
+  BBYEFP1pk0pT1pLxE5/MkOpkVh7sY1y+MB8GA1UdIwQYMBaAFP1pk0pT1pLxE5/M
+  kOpkVh7sY1y+MAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQELBQADggIBAIw65eYs
+  PFUR2j+eKz8YPeuMSMIJnU6lpIuYBDn9rBcEruO9ABjh4K9bpxPz0q3PF7Es1vQG
+  KTIsnLkcGFoqTJWGyrCn3ExQR6vhSSIImceSOjRjSnClFTsGz0yDSpoZ2d8/4W5h
+  RIsLW4L8zuMsVU7ahsU3DXwc8MyrbqEiCP1qTew1t1os7OrMysN4Bub0aKXLFFvO
+  L1DYk8wTRBXF4WcNro2ObhpL7x5RwqY7GW1FQpvqFQ7eX2O0JpRFevKbQmXTCZNT
+  lXIPhsvdpuSCnCvq9c0s3RiZWIQdnreBmS48z2znr2jt2JKGX2aMSiYW6Zv68EpP
+  66kbFunIbdEwciPcWLQnPVeXA1aD/OIL3+EXOO/JtNCl9wbfH91tLZiJbkj3Q3R0
+  8N+o9B7GLVP3IAqP1xH8hiruE3RSa7jBYJGfkNoMMIk6XMPNjl7TUXTsLrmGAIdn
+  E3NgrTMZeiu/LygwpUYgkrhskZEe4oP5Z0whav21m+ItU7Kj9I9vi01SbO/HQO+Q
+  YL6HJfuBERLlTTirIxWELEtVEoPntcvzzI3wBui2j45JlQpru7vvJTkmMm1O7McB
+  tbdUGG7hw86tiGD1AkhNJRO9J9x+xLB6v0/dFUgKnhzvMd9OfibkoQim2eUxzDBK
+  CXeQQqlzxC9YWQZCFwcvxPj2iOByFR9AJ2M1
+  -----END CERTIFICATE-----

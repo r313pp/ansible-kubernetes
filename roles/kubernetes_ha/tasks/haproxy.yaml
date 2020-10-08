@@ -1,0 +1,29 @@
+---
+
+- name: install haproxy
+  yum:
+    name: haproxy
+  notify: haproxy service restart
+
+- name: get sysctl net.ipv4.tcp_keepalive_time
+  shell: sysctl -b net.ipv4.tcp_keepalive_time
+  register: sysctl_tcp_keepalive_time_out
+
+- name: copy haproxy config
+  vars:
+    sysctl_tcp_keepalive_time: "{{ [sysctl_tcp_keepalive_time_out.stdout | int, 15] | max }}"
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: 0600
+  notify: haproxy service restart
+
+- name: setting net.ipv4.ip_nonlocal_bind = 1
+  sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: "1"
+    sysctl_file: /etc/sysctl.d/haproxy.conf
+    sysctl_set: yes
+  notify: haproxy service restart

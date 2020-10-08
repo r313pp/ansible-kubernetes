@@ -1,0 +1,40 @@
+---
+
+- name: setting sysctl values
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/ansible.conf
+    sysctl_set: yes
+  loop: "{{ sysctl_config | default({}) | dict2items }}"
+
+- name: inhouse ca cert trust
+  blockinfile:
+    path: /etc/pki/ca-trust/source/anchors/ansible_certs.crt
+    block: "{{ ca_certs_additional | default('') }}"
+    create: yes
+  register: certs_updated
+
+- name: update ca trust
+  shell: update-ca-trust
+  when: certs_updated is changed
+
+- name: try restart docker service
+  systemd:
+    name: docker
+    state: restarted
+  ignore_errors: yes
+  when: certs_updated is changed
+
+- name: yum set proxy
+  blockinfile:
+    path: /etc/yum.conf
+    marker: "# {mark} ANSIBLE MANAGED BLOCK proxy"
+    block: |-
+      {% if proxy_env.https_proxy is defined %}
+      proxy={{ proxy_env.https_proxy }}
+      {% endif %}
+
+- name: setup chrony
+  include: chrony.yaml
+  notify: chrony service restart

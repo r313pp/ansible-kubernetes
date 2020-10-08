@@ -6,25 +6,20 @@
   roles:
     - role: check-os
       any_errors_fatal: true
-
-- hosts: cluster
-  gather_facts: yes
-  become: yes
-  roles:
+    - role: common
+      tags: common
     - role: docker
       tags: docker
+    - role: kubernetes
+      tags: kubernetes
 
-- hosts: cluster
-  gather_facts: no
+- hosts: controllers
+  gather_facts: yes
   become: yes
   roles:
     - role: nginx_http_health_check
       tags: nginx_http_health_check
-      when: nginx_http_health_check
-
-- hosts: cluster
-  gather_facts: yes
-  become: yes
-  roles:
-    - role: kubernetes
-      tags: kubernetes
+      when: nginx_http_health_check | default(false)
+    - role: kubernetes_ha
+      tags: k8s_ha
+      when: (groups['controllers'] | length) > 1

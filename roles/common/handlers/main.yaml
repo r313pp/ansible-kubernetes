@@ -1,0 +1,7 @@
+---
+
+- name: chrony service restart
+  systemd:
+    name: chrony
+    state: restarted
+    enabled: yes
