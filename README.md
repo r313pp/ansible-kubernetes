@@ -11,7 +11,7 @@ _needs to be tested on other versions_
 
 ## Instruction
 
-1. Copy [`inventories/example`](inventories/example) dir to somthing like `inventories/staging`.\
+1. Copy [`inventories/example`](inventories/example) dir to something like `inventories/staging`.\
    This will be your ansible inventory.
 2. Modify the `hosts` file, put your actual servers there.
 3. Modify the [`group_vars/cluster.yaml`](group_vars/cluster.yaml) by following description there.
