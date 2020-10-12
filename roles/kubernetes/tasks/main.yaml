@@ -68,14 +68,15 @@
   delegate_to: "{{ kubeadm_main_node }}"
 
 - name: check calico
-  shell: >-
-    KUBECONFIG=/etc/kubernetes/admin.conf
-    kubectl -n kube-system get deployment/calico-kube-controllers
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  shell: kubectl -n kube-system get deployment/calico-kube-controllers
   changed_when: false
   run_once: true
   delegate_to: "{{ kubeadm_main_node }}"
   register: kubernetes_calico_check
   ignore_errors: true
+  check_mode: no
 
 - name: install calico
   environment: |-
