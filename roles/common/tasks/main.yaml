@@ -37,4 +37,3 @@
 
 - name: setup chrony
   include: chrony.yaml
-  notify: chrony service restart

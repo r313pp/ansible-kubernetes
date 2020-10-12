@@ -3,6 +3,7 @@
 - name: install chrony
   yum:
     name: chrony
+  notify: chrony service restart
 
 - name: copy chrony config
   template:
@@ -11,3 +12,4 @@
     owner: root
     group: root
     mode: 0644
+  notify: chrony service restart
