@@ -28,7 +28,7 @@
     - containerd.io-{{ containerd_version }}
     state: present
     allow_downgrade: yes
-  register: docker_install
+  notify: docker service restart
 
 - name: ensures /etc/systemd/system/docker.service.d dir exists
   file:
