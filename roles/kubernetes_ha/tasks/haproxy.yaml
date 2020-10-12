@@ -8,6 +8,7 @@
 - name: get sysctl net.ipv4.tcp_keepalive_time
   shell: sysctl -b net.ipv4.tcp_keepalive_time
   register: sysctl_tcp_keepalive_time_out
+  check_mode: no
 
 - name: copy haproxy config
   vars:
