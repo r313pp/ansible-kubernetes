@@ -17,9 +17,10 @@ vrrp_script chk_haproxy {
 vrrp_instance VI_1 {
     state {% if groups["controllers"][0] == ansible_nodename -%}
             MASTER
-          {% else -%}
+          {%- else -%}
             BACKUP
           {%- endif %}
+    
     interface {{ ansible_default_ipv4.interface }}
     virtual_router_id {{ k8s_ha.keepalived_virtual_router_id }}
     priority 100
